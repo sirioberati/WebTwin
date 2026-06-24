@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, height=600, user-scalable=no">
+  <title>Unlock</title>
+  <style>
+    :root {
+      --bg-primary: #000000; /* pure black = transparent on additive display */
+      --bg-secondary: #0a0a0f;
+      --bg-tertiary: #14141f;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --accent-primary: #00d4ff;
+      --focus-glow: rgba(0, 212, 255, 0.4);
+      --success: #00ff88;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      width: 600px;
+      height: 600px;
+      overflow: hidden;
+    }
+
+    #lock-screen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+
+    /* ==================== HEADER ==================== */
+    .lock-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lock-icon { color: var(--text-muted); }
+
+    .lock-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ==================== COMBO LOCK ==================== */
+    .combo-lock {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .lock-body {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: linear-gradient(180deg, #0d0d18 0%, #161628 40%, #161628 60%, #0d0d18 100%);
+      border-radius: 16px;
+      border: 2px solid #2a2a40;
+      padding: 0 6px;
+      position: relative;
+      box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .selection-band {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 56px;
+      background: rgba(0, 212, 255, 0.06);
+      border-top: 1.5px solid rgba(0, 212, 255, 0.25);
+      border-bottom: 1.5px solid rgba(0, 212, 255, 0.25);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .combo-column {
+      width: 80px;
+      height: 240px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .combo-column.active .digit.current {
+      color: var(--accent-primary);
+      text-shadow: 0 0 20px var(--focus-glow);
+    }
+
+    .combo-divider {
+      width: 1.5px;
+      height: 180px;
+      background: linear-gradient(180deg, transparent, #2a2a40, transparent);
+      flex-shrink: 0;
+    }
+
+    .digit-window {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .digit-strip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      transition: transform 0.15s ease-out;
+    }
+
+    .digit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 48px;
+      font-size: 34px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .digit.current { color: var(--text-primary); font-size: 40px; opacity: 1; }
+    .digit.near { color: var(--text-muted); opacity: 0.5; font-size: 28px; }
+    .digit.far { color: var(--text-muted); opacity: 0.15; font-size: 22px; }
+
+    /* Column indicator dots */
+    .column-indicator { display: flex; gap: 10px; }
+
+    .column-indicator .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      opacity: 0.4;
+      transition: all 0.2s ease;
+    }
+
+    .column-indicator .dot.active {
+      background: var(--accent-primary);
+      opacity: 1;
+      box-shadow: 0 0 8px var(--focus-glow);
+    }
+
+    /* ==================== HINT ==================== */
+    .lock-hint { font-size: 13px; color: var(--text-muted); letter-spacing: 0.3px; }
+    .hint-arrows { color: var(--text-secondary); font-size: 11px; }
+
+    /* ==================== UNLOCK MESSAGE ==================== */
+    .unlock-msg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: rgba(10, 10, 15, 0.92);
+      backdrop-filter: blur(6px);
+      color: var(--success);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      z-index: 10;
+      border-radius: 14px;
+      animation: unlockIn 0.4s ease;
+    }
+
+    .unlock-msg.hidden { display: none; }
+
+    @keyframes unlockIn {
+      0% { opacity: 0; transform: scale(0.7); }
+      60% { opacity: 1; transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ==================== SHAKE (wrong code) ==================== */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    .lock-body.shake { animation: shake 0.4s ease; }
+
+    /* ==================== CORRECT GLOW ==================== */
+    .lock-body.correct .digit.current {
+      color: var(--success);
+      text-shadow: 0 0 16px rgba(0, 255, 136, 0.5);
+    }
+
+    .lock-body.correct .selection-band {
+      border-color: rgba(0, 255, 136, 0.4);
+      background: rgba(0, 255, 136, 0.08);
+    }
+  </style>
+</head>
+<body>
+  <div id="lock-screen">
+    <div class="lock-header">
+      <div class="lock-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div class="lock-title">Enter Passcode</div>
+    </div>
+
+    <div class="combo-lock">
+      <div class="lock-body">
+        <div class="selection-band"></div>
+        <div class="combo-column" data-col="0">
+          <div class="digit-window">
+            <div class="digit-strip">
+              <span class="digit far">0</span>
+              <span class="digit near">0</span>
+              <span class="digit current">0</span>
+              <span class="digit near">0</span>
+              <span class="digit far">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="combo-divider"></div>
+        <div class="combo-column" data-col="1">
+          <div class="digit-window">
+            <div class="digit-strip">
+              <span class="digit far">0</span>
+              <span class="digit near">0</span>
+              <span class="digit current">0</span>
+              <span class="digit near">0</span>
+              <span class="digit far">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="combo-divider"></div>
+        <div class="combo-column" data-col="2">
+          <div class="digit-window">
+            <div class="digit-strip">
+              <span class="digit far">0</span>
+              <span class="digit near">0</span>
+              <span class="digit current">0</span>
+              <span class="digit near">0</span>
+              <span class="digit far">0</span>
+            </div>
+          </div>
+        </div>
+        <div id="unlock-msg" class="unlock-msg hidden">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+          </svg>
+          <span>Unlocked</span>
+        </div>
+      </div>
+      <div class="column-indicator">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    </div>
+
+    <div class="lock-hint">
+      <span class="hint-arrows">&#9650; &#9660;</span> rotate &nbsp;&nbsp;
+      <span class="hint-arrows">&#9664; &#9654;</span> switch column
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ===== REPLACE THESE TWO VALUES =====
+      var PASSCODE = [__DIGIT_0__, __DIGIT_1__, __DIGIT_2__];
+      var STORAGE_KEY = '__APP_NAME___unlocked';
+
+      var activeCol = 0;
+      var values = [0, 0, 0];
+      var columns = [];
+      var dots = [];
+      var unlocked = false;
+
+      // Check if already unlocked on this device
+      if (localStorage.getItem(STORAGE_KEY) === '1') {
+        window.location.replace('index.html');
+        return;
+      }
+
+      function mod(n, m) {
+        return ((n % m) + m) % m;
+      }
+
+      function getDigits(value) {
+        return [
+          mod(value - 2, 10),
+          mod(value - 1, 10),
+          value,
+          mod(value + 1, 10),
+          mod(value + 2, 10),
+        ];
+      }
+
+      function renderColumn(colIndex) {
+        var col = columns[colIndex];
+        var strip = col.querySelector('.digit-strip');
+        var digits = strip.querySelectorAll('.digit');
+        var nums = getDigits(values[colIndex]);
+
+        for (var i = 0; i < 5; i++) {
+          digits[i].textContent = nums[i];
+        }
+
+        columns.forEach(function(c, idx) {
+          c.classList.toggle('active', idx === activeCol);
+        });
+
+        dots.forEach(function(d, idx) {
+          d.classList.toggle('active', idx === activeCol);
+        });
+
+        col.classList.remove('correct');
+      }
+
+      function renderAll() {
+        for (var i = 0; i < 3; i++) {
+          renderColumn(i);
+        }
+      }
+
+      function rotateUp() {
+        values[activeCol] = mod(values[activeCol] - 1, 10);
+        renderColumn(activeCol);
+        checkCode();
+      }
+
+      function rotateDown() {
+        values[activeCol] = mod(values[activeCol] + 1, 10);
+        renderColumn(activeCol);
+        checkCode();
+      }
+
+      function moveLeft() {
+        activeCol = Math.max(0, activeCol - 1);
+        renderAll();
+      }
+
+      function moveRight() {
+        activeCol = Math.min(2, activeCol + 1);
+        renderAll();
+      }
+
+      function checkCode() {
+        if (unlocked) return;
+
+        var match = values[0] === PASSCODE[0] &&
+                    values[1] === PASSCODE[1] &&
+                    values[2] === PASSCODE[2];
+
+        if (match) {
+          unlocked = true;
+          document.querySelector('.lock-body').classList.add('correct');
+
+          setTimeout(function() {
+            document.getElementById('unlock-msg').classList.remove('hidden');
+            localStorage.setItem(STORAGE_KEY, '1');
+
+            setTimeout(function() {
+              window.location.replace('index.html');
+            }, 800);
+          }, 300);
+        }
+      }
+
+      function setupEvents() {
+        document.addEventListener('keydown', function(e) {
+          if (unlocked) return;
+
+          switch (e.key) {
+            case 'ArrowUp':
+              rotateUp();
+              e.preventDefault();
+              break;
+            case 'ArrowDown':
+              rotateDown();
+              e.preventDefault();
+              break;
+            case 'ArrowLeft':
+              moveLeft();
+              e.preventDefault();
+              break;
+            case 'ArrowRight':
+              moveRight();
+              e.preventDefault();
+              break;
+          }
+        });
+      }
+
+      function init() {
+        columns = Array.from(document.querySelectorAll('.combo-column'));
+        dots = Array.from(document.querySelectorAll('.column-indicator .dot'));
+        setupEvents();
+        renderAll();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
